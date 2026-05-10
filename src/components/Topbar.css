@@ -1,0 +1,116 @@
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background-color: #0f0f0f;
+  border-bottom: 1px solid #2a2a2a;
+  min-height: 60px;
+  position: relative;
+  z-index: 10;
+}
+
+.topbar-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-right {
+  display: flex;
+  gap: 12px;
+}
+
+/* Single View Info */
+.single-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.single-info .service-details h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 4px;
+}
+
+/* Split View Info */
+.split-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.pane-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pane-info:hover {
+  background-color: #1e1e1e;
+}
+
+.pane-info.active {
+  background-color: #2a2a3a;
+  box-shadow: 0 0 0 1px #4a4a6a;
+}
+
+.pane-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #b0b0b0;
+}
+
+.pane-info.active .pane-name {
+  color: #ffffff;
+}
+
+.pane-divider {
+  color: #3a3a3a;
+  font-size: 20px;
+}
+
+/* Split View Button */
+.split-view-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #b0b0b0;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.split-view-button:hover {
+  background-color: #2a2a2a;
+  border-color: #3a3a3a;
+  color: #ffffff;
+}
+
+.split-view-button.active {
+  background-color: #2a2a3a;
+  border-color: #4a4a6a;
+  color: #ffffff;
+}
+
+.button-icon {
+  font-size: 16px;
+}
+
+.button-text {
+  font-size: 13px;
+}

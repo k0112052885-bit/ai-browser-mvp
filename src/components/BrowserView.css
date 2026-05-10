@@ -1,0 +1,159 @@
+.browser-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: #1a1a1a;
+  height: 100%;
+  overflow: hidden;
+}
+
+.browser-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  color: #606060;
+  background-color: #1a1a1a;
+}
+
+.browser-placeholder h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #808080;
+}
+
+.browser-placeholder p {
+  font-size: 16px;
+}
+
+.webview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: #0f0f0f;
+  border-bottom: 1px solid #2a2a2a;
+  min-height: 40px;
+}
+
+.webview-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.webview-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.webview-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.browser-view .webview-actions button,
+.browser-view .webview-actions .pane-icon-button,
+.browser-view .webview-actions .pane-back-button,
+.browser-view .webview-actions .pane-external-button,
+.browser-view .webview-actions .pane-home-button,
+.browser-view .webview-header button[title],
+.browser-view .webview-header button[aria-label] {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #707070 !important;
+  border: 1px solid #cfcfcf !important;
+  border-radius: 50% !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  appearance: none !important;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45) !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.browser-view .webview-actions button svg,
+.browser-view .webview-actions .pane-icon-button svg,
+.browser-view .webview-actions .pane-back-button svg,
+.browser-view .webview-actions .pane-external-button svg,
+.browser-view .webview-actions .pane-home-button svg,
+.browser-view .webview-header button[title] svg,
+.browser-view .webview-header button[aria-label] svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  color: #ffffff !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.browser-view .webview-actions button[aria-disabled="true"],
+.browser-view .webview-actions .pane-icon-button[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+
+.browser-view .webview-actions button:hover,
+.browser-view .webview-actions .pane-icon-button:hover,
+.browser-view .webview-actions .pane-back-button:hover,
+.browser-view .webview-actions .pane-external-button:hover,
+.browser-view .webview-actions .pane-home-button:hover,
+.browser-view .webview-header button[title]:hover,
+.browser-view .webview-header button[aria-label]:hover {
+  background: #888888 !important;
+  border-color: #ffffff !important;
+}
+
+.browser-view .webview-actions button:active,
+.browser-view .webview-actions .pane-icon-button:active,
+.browser-view .webview-actions .pane-back-button:active,
+.browser-view .webview-actions .pane-external-button:active,
+.browser-view .webview-actions .pane-home-button:active,
+.browser-view .webview-header button[title]:active,
+.browser-view .webview-header button[aria-label]:active {
+  transform: scale(0.95) !important;
+}
+
+.login-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #2a2a1a;
+  border-bottom: 1px solid #3a3a2a;
+  font-size: 12px;
+  color: #b0b090;
+}
+
+.notice-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.notice-text {
+  line-height: 1.4;
+}
+
+.browser-content {
+  flex: 1;
+  background-color: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+webview {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+}

@@ -1,0 +1,68 @@
+{
+  "name": "ai-browser-mvp",
+  "version": "1.0.1",
+  "description": "AI 통합 브라우저 - Multiple AI services in one desktop app",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:patch-dev-plist": "node patch-electron-dev-plist.cjs",
+    "electron:dev": "npm run electron:patch-dev-plist && vite",
+    "electron:build": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder --mac"
+  },
+  "keywords": [
+    "electron",
+    "react",
+    "ai",
+    "browser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.8.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-plugin-electron": "^0.28.1",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.aibrowser.app",
+    "productName": "AI Browser",
+    "icon": "public/icons/app-icon.png",
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "k0112052885-bit",
+      "repo": "ai-browser-mvp"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "public/icons/app-icon.png",
+      "extendInfo": {
+        "NSBluetoothAlwaysUsageDescription": "AI 서비스 로그인, 패스키 인증, 보안 장치 확인 과정에서 Bluetooth 접근이 필요할 수 있습니다.",
+        "NSBluetoothPeripheralUsageDescription": "AI 서비스 로그인, 패스키 인증, 보안 장치 확인 과정에서 Bluetooth 접근이 필요할 수 있습니다.",
+        "NSCameraUsageDescription": "AI 서비스의 카메라 입력 기능 사용 시 필요합니다.",
+        "NSMicrophoneUsageDescription": "AI 서비스의 음성 입력 및 음성 대화 기능 사용 시 필요합니다."
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+.gemini-view-host {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background-color: #ffffff;
+}
+
+.gemini-view-failure {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: #f0f0f0;
+  background-color: #171717;
+  text-align: center;
+}
+
+.gemini-view-failure h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.gemini-view-failure button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  background-color: #f0f0f0;
+  color: #111111;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gemini-view-failure button:hover {
+  background-color: #ffffff;
+}

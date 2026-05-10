@@ -1,0 +1,161 @@
+.grid-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0f0f0f;
+  gap: 1px;
+}
+
+.grid-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: #1a1a1a;
+  transition: box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.grid-pane.active {
+  box-shadow: inset 0 0 0 2px #4a4a6a;
+}
+
+.grid-pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #0f0f0f;
+  border-bottom: 1px solid #2a2a2a;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.grid-pane-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #2a2a1a;
+  border-bottom: 1px solid #3a3a2a;
+  font-size: 11px;
+  color: #b0b090;
+}
+
+.grid-pane-notice .notice-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.grid-pane-webview {
+  flex: 1;
+  min-height: 0;
+  background-color: #ffffff;
+  overflow: hidden;
+}
+
+.grid-pane-webview webview {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+}
+
+.grid-pane-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  color: #606060;
+  cursor: pointer;
+}
+
+.grid-pane-placeholder h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #808080;
+}
+
+.grid-pane-placeholder p {
+  font-size: 14px;
+}
+
+.pane-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.grid-view .pane-header-actions button,
+.grid-view .pane-header-actions .pane-icon-button,
+.grid-view .pane-header-actions .pane-back-button,
+.grid-view .pane-header-actions .pane-external-button,
+.grid-view .pane-header-actions .pane-home-button,
+.grid-view .grid-pane-header button[title],
+.grid-view .grid-pane-header button[aria-label] {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #707070 !important;
+  border: 1px solid #cfcfcf !important;
+  border-radius: 50% !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  appearance: none !important;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45) !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.grid-view .pane-header-actions button svg,
+.grid-view .pane-header-actions .pane-icon-button svg,
+.grid-view .pane-header-actions .pane-back-button svg,
+.grid-view .pane-header-actions .pane-external-button svg,
+.grid-view .pane-header-actions .pane-home-button svg,
+.grid-view .grid-pane-header button[title] svg,
+.grid-view .grid-pane-header button[aria-label] svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  color: #ffffff !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.grid-view .pane-header-actions button[aria-disabled="true"],
+.grid-view .pane-header-actions .pane-icon-button[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+
+.grid-view .pane-header-actions button:hover,
+.grid-view .pane-header-actions .pane-icon-button:hover,
+.grid-view .pane-header-actions .pane-back-button:hover,
+.grid-view .pane-header-actions .pane-external-button:hover,
+.grid-view .pane-header-actions .pane-home-button:hover,
+.grid-view .grid-pane-header button[title]:hover,
+.grid-view .grid-pane-header button[aria-label]:hover {
+  background: #888888 !important;
+  border-color: #ffffff !important;
+}
+
+.grid-view .pane-header-actions button:active,
+.grid-view .pane-header-actions .pane-icon-button:active,
+.grid-view .pane-header-actions .pane-back-button:active,
+.grid-view .pane-header-actions .pane-external-button:active,
+.grid-view .pane-header-actions .pane-home-button:active,
+.grid-view .grid-pane-header button[title]:active,
+.grid-view .grid-pane-header button[aria-label]:active {
+  transform: scale(0.95) !important;
+}

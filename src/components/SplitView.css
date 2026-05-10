@@ -1,0 +1,180 @@
+.split-view {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.split-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1a1a1a;
+  position: relative;
+  flex: 1 1 0;
+  width: 50%;
+  transition: box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.split-pane.active {
+  box-shadow: inset 0 0 0 2px #4a4a6a;
+}
+
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #0f0f0f;
+  border-bottom: 1px solid #2a2a2a;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.pane-header-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pane-header-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.pane-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.split-view .pane-header-actions button,
+.split-view .pane-header-actions .pane-icon-button,
+.split-view .pane-header-actions .pane-back-button,
+.split-view .pane-header-actions .pane-external-button,
+.split-view .pane-header-actions .pane-refresh-button,
+.split-view .pane-header button[title],
+.split-view .pane-header button[aria-label] {
+  width: 34px !important;
+  height: 34px !important;
+  min-width: 34px !important;
+  min-height: 34px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #707070 !important;
+  border: 1px solid #cfcfcf !important;
+  border-radius: 50% !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+  appearance: none !important;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.45) !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.split-view .pane-header-actions button svg,
+.split-view .pane-header-actions .pane-icon-button svg,
+.split-view .pane-header-actions .pane-back-button svg,
+.split-view .pane-header-actions .pane-external-button svg,
+.split-view .pane-header-actions .pane-refresh-button svg,
+.split-view .pane-header button[title] svg,
+.split-view .pane-header button[aria-label] svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  color: #ffffff !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+.split-view .pane-header-actions button[aria-disabled="true"],
+.split-view .pane-header-actions .pane-icon-button[aria-disabled="true"] {
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+
+.split-view .pane-header-actions button:hover,
+.split-view .pane-header-actions .pane-icon-button:hover,
+.split-view .pane-header-actions .pane-back-button:hover,
+.split-view .pane-header-actions .pane-external-button:hover,
+.split-view .pane-header-actions .pane-refresh-button:hover,
+.split-view .pane-header button[title]:hover,
+.split-view .pane-header button[aria-label]:hover {
+  background: #888888 !important;
+  border-color: #ffffff !important;
+}
+
+.split-view .pane-header-actions button:active,
+.split-view .pane-header-actions .pane-icon-button:active,
+.split-view .pane-header-actions .pane-back-button:active,
+.split-view .pane-header-actions .pane-external-button:active,
+.split-view .pane-header-actions .pane-refresh-button:active,
+.split-view .pane-header button[title]:active,
+.split-view .pane-header button[aria-label]:active {
+  transform: scale(0.95) !important;
+}
+
+.pane-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #2a2a1a;
+  border-bottom: 1px solid #3a3a2a;
+  font-size: 11px;
+  color: #b0b090;
+}
+
+.pane-notice .notice-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.pane-notice .notice-text {
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pane-webview {
+  flex: 1;
+  background-color: #ffffff;
+  overflow: hidden;
+  position: relative;
+}
+
+.pane-webview webview {
+  display: inline-flex;
+  width: 100%;
+  height: 100%;
+}
+
+.pane-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  background-color: #1a1a1a;
+  color: #606060;
+  cursor: pointer;
+}
+
+.pane-placeholder h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #808080;
+}
+
+.pane-placeholder p {
+  font-size: 14px;
+  color: #606060;
+}
