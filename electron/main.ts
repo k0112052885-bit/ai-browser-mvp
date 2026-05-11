@@ -3,7 +3,6 @@ import * as path from 'path'
 import * as fs from 'fs'
 app.disableHardwareAcceleration()
 import Store from 'electron-store'
-import { autoUpdater } from 'electron-updater'
 import { buildDraftClearScript, buildPromptInsertScript } from '../src/webviewPrompt'
 
 interface AIService {
@@ -66,6 +65,46 @@ let mainWindow: BrowserWindow | null = null
 const CHROME_122_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
 const RELEASE_URL = 'https://github.com/k0112052885-bit/ai-browser-mvp/releases/latest'
+const LATEST_MAC_YML_URL = 'https://github.com/k0112052885-bit/ai-browser-mvp/releases/latest/download/latest-mac.yml'
+const LATEST_DMG_URL = (version: string) =>
+  `https://github.com/k0112052885-bit/ai-browser-mvp/releases/latest/download/AI-Browser-${version}-arm64.dmg`
+
+function compareVersions(a: string, b: string) {
+  const partsA = a.split('.').map(Number)
+  const partsB = b.split('.').map(Number)
+  const length = Math.max(partsA.length, partsB.length)
+
+  for (let index = 0; index < length; index += 1) {
+    const valueA = partsA[index] ?? 0
+    const valueB = partsB[index] ?? 0
+
+    if (valueA > valueB) return 1
+    if (valueA < valueB) return -1
+  }
+
+  return 0
+}
+
+async function fetchLatestVersion() {
+  const response = await fetch(LATEST_MAC_YML_URL, {
+    headers: {
+      'Cache-Control': 'no-cache'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`latest-mac.yml request failed: ${response.status}`)
+  }
+
+  const text = await response.text()
+  const versionMatch = text.match(/^version:\s*['"]?([^'"\n\r]+)['"]?/m)
+
+  if (!versionMatch?.[1]) {
+    throw new Error('latest-mac.yml version not found')
+  }
+
+  return versionMatch[1].trim()
+}
 
 interface ViewBounds {
   x: number
@@ -88,47 +127,45 @@ function setupAutoUpdater() {
     return
   }
 
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = false
+  setTimeout(async () => {
+    try {
+      console.log('[auto-update] checking for update')
+      const currentVersion = app.getVersion()
+      const latestVersion = await fetchLatestVersion()
 
-  autoUpdater.on('checking-for-update', () => {
-    console.log('[auto-update] checking for update')
-  })
+      console.log('[auto-update] current:', currentVersion, 'latest:', latestVersion)
 
-  autoUpdater.on('update-available', async (info) => {
-    console.log('[auto-update] update available:', info.version)
+      if (compareVersions(latestVersion, currentVersion) <= 0) {
+        console.log('[auto-update] update not available:', latestVersion)
+        return
+      }
 
-    const options = {
-      type: 'info' as const,
-      title: '새 업데이트 발견',
-      message: '새 업데이트 발견',
-      detail: '새 버전이 있습니다. 다운로드 페이지로 이동하시겠습니까?',
-      buttons: ['다운로드', '나중에'],
-      defaultId: 0,
-      cancelId: 1
+      const result = mainWindow && !mainWindow.isDestroyed()
+        ? await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: '새 업데이트 발견',
+          message: `새 버전 ${latestVersion}이 있습니다.`,
+          detail: '다운로드 버튼을 누르면 설치용 DMG 파일을 바로 다운로드합니다.',
+          buttons: ['다운로드', '나중에'],
+          defaultId: 0,
+          cancelId: 1
+        })
+        : await dialog.showMessageBox({
+          type: 'info',
+          title: '새 업데이트 발견',
+          message: `새 버전 ${latestVersion}이 있습니다.`,
+          detail: '다운로드 버튼을 누르면 설치용 DMG 파일을 바로 다운로드합니다.',
+          buttons: ['다운로드', '나중에'],
+          defaultId: 0,
+          cancelId: 1
+        })
+
+      if (result.response === 0) {
+        await shell.openExternal(LATEST_DMG_URL(latestVersion))
+      }
+    } catch (error) {
+      console.log('[auto-update] update check failed:', error instanceof Error ? error.message : error)
     }
-
-    const result = mainWindow && !mainWindow.isDestroyed()
-      ? await dialog.showMessageBox(mainWindow, options)
-      : await dialog.showMessageBox(options)
-
-    if (result.response === 0) {
-      shell.openExternal(RELEASE_URL)
-    }
-  })
-
-  autoUpdater.on('update-not-available', (info) => {
-    console.log('[auto-update] update not available:', info.version)
-  })
-
-  autoUpdater.on('error', (error) => {
-    console.warn('[auto-update] error:', error)
-  })
-
-  setTimeout(() => {
-    autoUpdater.checkForUpdates().catch((error) => {
-      console.warn('[auto-update] check failed:', error)
-    })
   }, 3000)
 }
 
@@ -466,21 +503,32 @@ ipcMain.handle('auto-update-check', async () => {
   }
 
   try {
-    const result = await autoUpdater.checkForUpdates()
-    return { ok: true, updateInfo: result?.updateInfo ?? null }
+    const currentVersion = app.getVersion()
+    const latestVersion = await fetchLatestVersion()
+    return {
+      ok: true,
+      updateInfo: {
+        currentVersion,
+        version: latestVersion,
+        available: compareVersions(latestVersion, currentVersion) > 0
+      }
+    }
   } catch (error) {
-    console.warn('[auto-update] manual check failed:', error)
+    console.log('[auto-update] manual check failed:', error instanceof Error ? error.message : error)
     return { ok: false, reason: error instanceof Error ? error.message : 'unknown-error' }
   }
 })
 
-ipcMain.handle('auto-update-install', () => {
-  if (process.env.VITE_DEV_SERVER_URL) {
-    return false
+ipcMain.handle('auto-update-install', async () => {
+  try {
+    const latestVersion = await fetchLatestVersion()
+    await shell.openExternal(LATEST_DMG_URL(latestVersion))
+    return true
+  } catch (error) {
+    console.log('[auto-update] open latest dmg failed:', error instanceof Error ? error.message : error)
+    await shell.openExternal(RELEASE_URL)
+    return true
   }
-
-  shell.openExternal(RELEASE_URL)
-  return true
 })
 
 ipcMain.handle('read-prompt-attachments', async (_event, attachments: Array<{ path?: string; name: string; type?: string; kind?: string; size?: number }>) => {
@@ -594,7 +642,10 @@ ipcMain.handle('gemini-view-insert-prompt', async (_event, id: string, text: str
   const state = geminiViews.get(id)
   const promptOptions = options as { autoSend?: boolean; attachments?: unknown[]; debugLabel?: string }
 
+  console.log('[gemini-view-insert-prompt] called:', { id, text, autoSend: promptOptions.autoSend, hasFailed: state?.failed, hasState: Boolean(state) })
+
   if (!state || state.failed) {
+    console.warn('[gemini-view-insert-prompt] skipped: no state or failed')
     return { inserted: false, sent: false, sendAttempted: Boolean(promptOptions.autoSend) }
   }
 
@@ -603,6 +654,8 @@ ipcMain.handle('gemini-view-insert-prompt', async (_event, id: string, text: str
       buildPromptInsertScript(text, promptOptions),
       true
     )
+
+    console.log('[gemini-view-insert-prompt] result:', result)
 
     if (result && typeof result === 'object') {
       return result
@@ -616,5 +669,49 @@ ipcMain.handle('gemini-view-insert-prompt', async (_event, id: string, text: str
   } catch (error) {
     console.warn('Failed to insert prompt into Gemini BrowserView:', { id, error })
     return { inserted: false, sent: false, sendAttempted: Boolean(promptOptions.autoSend) }
+  }
+})
+
+ipcMain.handle('gemini-view-dump-dom', async (_event, id: string) => {
+  const state = geminiViews.get(id)
+  if (!state) return { error: 'no state for id: ' + id }
+  try {
+    const result = await state.view.webContents.executeJavaScript(`
+      (() => {
+        const inputs = Array.from(document.querySelectorAll('textarea, input, [contenteditable], [role="textbox"]'))
+          .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 })
+          .map(el => {
+            const r = el.getBoundingClientRect()
+            return {
+              tag: el.tagName,
+              type: el.type || null,
+              role: el.getAttribute('role'),
+              contenteditable: el.getAttribute('contenteditable'),
+              ariaLabel: el.getAttribute('aria-label'),
+              placeholder: el.getAttribute('placeholder'),
+              className: (el.className || '').slice(0, 80),
+              rect: { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height) }
+            }
+          })
+        const buttons = Array.from(document.querySelectorAll('button:not([disabled]), [role="button"]'))
+          .filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 })
+          .map(el => {
+            const r = el.getBoundingClientRect()
+            return {
+              tag: el.tagName,
+              ariaLabel: el.getAttribute('aria-label'),
+              type: el.getAttribute('type'),
+              className: (el.className || '').slice(0, 80),
+              text: (el.textContent || '').trim().slice(0, 40),
+              rect: { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height) }
+            }
+          })
+        return { url: window.location.href, inputs, buttons }
+      })()
+    `, true)
+    console.log('[gemini-view-dump-dom]', JSON.stringify(result, null, 2))
+    return result
+  } catch (error) {
+    return { error: String(error) }
   }
 })

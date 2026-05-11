@@ -25,6 +25,7 @@ export interface ElectronAPI {
     text: string,
     options?: PromptInsertOptions
   ) => Promise<{ inserted: boolean; sent: boolean; sendAttempted: boolean }>
+  dumpGeminiViewDom: (id: string) => Promise<unknown>
   onGeminiViewFailed: (callback: (id: string) => void) => () => void
 }
 

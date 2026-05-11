@@ -116,19 +116,47 @@ const forceWebviewBack = (webview: any) => {
   ) => {
     if (target === 'all') {
       const targets = [
-        leftService ? { service: leftService, webview: leftWebviewRef.current, viewId: 'gemini-panel-1' } : null,
-        rightService ? { service: rightService, webview: rightWebviewRef.current, viewId: 'gemini-panel-2' } : null
-      ].filter(Boolean) as { service: AIService; webview: any; viewId: string }[]
+        leftService ? {
+          service: leftService,
+          webview: leftWebviewRef.current,
+          viewId: leftService.id === 'gemini' ? 'gemini-panel-1' : null
+        } : null,
+        rightService ? {
+          service: rightService,
+          webview: rightWebviewRef.current,
+          viewId: rightService.id === 'gemini' ? 'gemini-panel-2' : null
+        } : null
+      ].filter(Boolean) as { service: AIService; webview: any; viewId: string | null }[]
+      console.log('[QuickPrompt][split][targets]', targets.map(targetPanel => ({
+        service: targetPanel.service.name,
+        serviceId: targetPanel.service.id,
+        hasWebview: Boolean(targetPanel.webview),
+        viewId: targetPanel.viewId
+      })))
+
       const results = await Promise.all(targets.map(async (targetPanel) => {
         const promptOptions = { ...options, debugLabel: targetPanel.service.name }
-        if (targetPanel.service.id === 'gemini') {
+        console.log('[QuickPrompt][split][start]', {
+          service: targetPanel.service.name,
+          serviceId: targetPanel.service.id,
+          hasWebview: Boolean(targetPanel.webview),
+          viewId: targetPanel.viewId
+        })
+
+        if (targetPanel.service.id === 'gemini' && targetPanel.viewId) {
           const result = await window.electronAPI.insertPromptIntoGeminiView(targetPanel.viewId, text, promptOptions)
-          console.log('[QuickPrompt][split]', targetPanel.service.name, result)
+          console.log('[QuickPrompt][split][gemini-result]', targetPanel.service.name, targetPanel.viewId, result)
+          return result
+        }
+
+        if (!targetPanel.webview) {
+          const result = { inserted: false, sent: false, sendAttempted: Boolean(options?.autoSend), reason: 'missing-webview-ref' }
+          console.warn('[QuickPrompt][split][webview-missing]', targetPanel.service.name, result)
           return result
         }
 
         const result = await insertPromptIntoWebview(targetPanel.webview, text, promptOptions)
-        console.log('[QuickPrompt][split]', targetPanel.service.name, result)
+        console.log('[QuickPrompt][split][webview-result]', targetPanel.service.name, result)
         return result
       }))
 
@@ -211,7 +239,6 @@ const forceWebviewBack = (webview: any) => {
     if (leftWebviewRef.current && leftService && !isLeftGemini) {
       const webview = leftWebviewRef.current
       webview.src = leftService.url
-      webview.partition = 'persist:ai-browser'
 
       const updateNavigationState = () => {
         if (webview.canGoBack) {
@@ -261,7 +288,6 @@ const forceWebviewBack = (webview: any) => {
     if (rightWebviewRef.current && rightService && !isRightGemini) {
       const webview = rightWebviewRef.current
       webview.src = rightService.url
-      webview.partition = 'persist:ai-browser'
 
       const updateNavigationState = () => {
         if (webview.canGoBack) {

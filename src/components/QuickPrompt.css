@@ -45,6 +45,28 @@
   position: relative;
 }
 
+.attachment-guidance {
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background-color: #1a1a1a;
+  border: 1px solid #2f2f3a;
+  border-radius: 8px;
+  color: #b8b8c8;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.attachment-guidance:hover {
+  border-color: #4a4a6a;
+  color: #ffffff;
+}
+
 .history-button-wrapper {
   position: relative;
 }

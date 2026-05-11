@@ -54,6 +54,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('gemini-view-can-go-forward', id),
   insertPromptIntoGeminiView: (id: string, text: string, options?: unknown) =>
     ipcRenderer.invoke('gemini-view-insert-prompt', id, text, options),
+  dumpGeminiViewDom: (id: string) =>
+    ipcRenderer.invoke('gemini-view-dump-dom', id),
   onGeminiViewFailed: (callback: (id: string) => void) => {
     const listener = (_event: IpcRendererEvent, id: string) => callback(id)
     ipcRenderer.on('gemini-view-failed', listener)

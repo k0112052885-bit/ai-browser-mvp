@@ -2,6 +2,61 @@ import type { PromptInsertOptions } from './types'
 
 type PromptWebview = HTMLElement & {
   executeJavaScript: (code: string, userGesture?: boolean) => Promise<unknown>
+  sendInputEvent?: (event: Record<string, unknown>) => void
+  focus?: () => void
+}
+// Native input fallback for Perplexity webview prompt insertion
+async function insertPromptWithNativeInputFallback(
+  webview: PromptWebview,
+  text: string,
+  options: PromptInsertOptions = {}
+): Promise<WebviewPromptResult> {
+  const label = options.debugLabel ?? ''
+  if (!/perplexity/i.test(label)) {
+    return { inserted: false, sent: false, sendAttempted: Boolean(options.autoSend) }
+  }
+
+  if (typeof webview.sendInputEvent !== 'function') {
+    return { inserted: false, sent: false, sendAttempted: Boolean(options.autoSend) }
+  }
+
+  try {
+    webview.focus?.()
+
+    const rect = webview.getBoundingClientRect()
+    const clickX = Math.round(rect.width * 0.5)
+    const clickY = Math.round(rect.height - 92)
+
+    webview.sendInputEvent({ type: 'mouseDown', x: clickX, y: clickY, button: 'left', clickCount: 1 })
+    webview.sendInputEvent({ type: 'mouseUp', x: clickX, y: clickY, button: 'left', clickCount: 1 })
+
+    await new Promise(resolve => setTimeout(resolve, 180))
+
+    webview.sendInputEvent({ type: 'keyDown', keyCode: 'A', modifiers: ['control'] })
+    webview.sendInputEvent({ type: 'keyUp', keyCode: 'A', modifiers: ['control'] })
+    webview.sendInputEvent({ type: 'keyDown', keyCode: 'Backspace' })
+    webview.sendInputEvent({ type: 'keyUp', keyCode: 'Backspace' })
+
+    await new Promise(resolve => setTimeout(resolve, 120))
+
+    for (const char of text) {
+      webview.sendInputEvent({ type: 'char', keyCode: char })
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 250))
+
+    let sent = false
+    if (options.autoSend) {
+      webview.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' })
+      webview.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' })
+      sent = true
+    }
+
+    return { inserted: true, sent, sendAttempted: Boolean(options.autoSend) }
+  } catch (error) {
+    console.warn('[QuickPrompt][Perplexity] native input fallback failed:', error)
+    return { inserted: false, sent: false, sendAttempted: Boolean(options.autoSend) }
+  }
 }
 
 export interface WebviewPromptResult {
@@ -76,7 +131,10 @@ export function buildPromptInsertScript(
         return isTextControl(element) ||
           element.isContentEditable ||
           element.getAttribute('contenteditable') === 'true' ||
-          element.getAttribute('contenteditable') === 'plaintext-only'
+          element.getAttribute('contenteditable') === 'plaintext-only' ||
+          element.getAttribute('role') === 'textbox' ||
+          element.hasAttribute('data-lexical-editor') ||
+          element.classList?.contains('ProseMirror')
       }
 
       const resolveEditableElement = (element) => {
@@ -84,7 +142,7 @@ export function buildPromptInsertScript(
 
         if (element.getAttribute('role') === 'textbox') {
           const nestedEditable = element.querySelector(
-            'textarea, input[type="text"], input:not([type]), [contenteditable="true"], [contenteditable="plaintext-only"]'
+            'textarea, input[type="text"], input:not([type]), [contenteditable="true"], [contenteditable="plaintext-only"], [role="textbox"], [data-lexical-editor], .ProseMirror'
           )
 
           if (nestedEditable && isEditableElement(nestedEditable)) {
@@ -147,8 +205,8 @@ export function buildPromptInsertScript(
           element.dispatchEvent(new InputEvent('input', {
             bubbles: true,
             cancelable: true,
-            inputType: 'insertText',
-            data: promptText
+            inputType: 'insertReplacementText',
+            data: null
           }))
         } catch {
           element.dispatchEvent(new Event('input', { bubbles: true }))
@@ -186,6 +244,9 @@ export function buildPromptInsertScript(
           target.value = promptText
         }
 
+        if (target.value === promptText + promptText) {
+          target.value = promptText
+        }
         dispatchValueEvents(target)
         setCaretToEnd(target)
         return target.value === promptText
@@ -195,6 +256,9 @@ export function buildPromptInsertScript(
         setCaretToEnd(target)
 
         target.textContent = promptText
+        if ((target.textContent || '') === promptText + promptText) {
+          target.textContent = promptText
+        }
         dispatchValueEvents(target)
         setCaretToEnd(target)
 
@@ -250,8 +314,8 @@ export function buildPromptInsertScript(
         element.textContent
       ].filter(Boolean).join(' ')
 
-      const blockedButtonText = /attach|upload|file|image|photo|picture|camera|mic|voice|audio|record|stop|cancel|close|settings|menu|more|google|apple|login|sign|첨부|업로드|파일|이미지|사진|카메라|마이크|음성|녹음|중지|취소|닫기|설정|메뉴|로그인/i
-      const preferredButtonText = /send|submit|arrow|paper|plane|보내기|전송|검색/i
+      const blockedButtonText = /attach|upload|file|image|photo|picture|camera|mic|voice|audio|record|stop|cancel|close|settings|menu|more|google|apple|login|sign|search|첨부|업로드|파일|이미지|사진|카메라|마이크|음성|녹음|중지|취소|닫기|설정|메뉴|로그인|검색/i
+      const preferredButtonText = /send|submit|arrow|upward|paper|plane|보내기|전송/i
 
       const isSendButton = (element) => {
         if (!isVisibleButton(element)) return false
@@ -297,7 +361,7 @@ export function buildPromptInsertScript(
         let score = 0
 
         if (button instanceof HTMLButtonElement && button.type === 'submit') score += 90
-        if (/send|보내기|전송|검색/i.test(text)) score += 120
+        if (/send|submit|arrow|upward|보내기|전송/i.test(text)) score += 120
         if (/data-testid|data-test-id|data-cy/i.test(text)) score += 5
         if (/arrow|paper|plane/i.test(text)) score += 50
         if (button.querySelector('svg')) score += 20
@@ -369,6 +433,7 @@ export function buildPromptInsertScript(
 
         try {
           insertedTarget.focus?.()
+          setCaretToEnd(insertedTarget)
 
           const eventOptions = {
             key: 'Enter',
@@ -380,11 +445,21 @@ export function buildPromptInsertScript(
             composed: true
           }
 
-          insertedTarget.dispatchEvent(new KeyboardEvent('keydown', eventOptions))
-          await wait(40)
-          insertedTarget.dispatchEvent(new KeyboardEvent('keypress', eventOptions))
-          await wait(40)
-          insertedTarget.dispatchEvent(new KeyboardEvent('keyup', eventOptions))
+          const activeTarget = document.activeElement || insertedTarget
+          const targets = dedupe([
+            insertedTarget,
+            activeTarget,
+            insertedTarget.closest?.('form'),
+            document
+          ])
+
+          for (const target of targets) {
+            try { target.dispatchEvent(new KeyboardEvent('keydown', eventOptions)) } catch {}
+            await wait(30)
+            try { target.dispatchEvent(new KeyboardEvent('keypress', eventOptions)) } catch {}
+            await wait(30)
+            try { target.dispatchEvent(new KeyboardEvent('keyup', eventOptions)) } catch {}
+          }
 
           try {
             insertedTarget.dispatchEvent(new InputEvent('beforeinput', {
@@ -399,11 +474,23 @@ export function buildPromptInsertScript(
           if (form) {
             try {
               form.requestSubmit?.()
+              console.log(logPrefix, '[auto-send] requested form submit')
+              return true
+            } catch {}
+
+            try {
+              form.dispatchEvent(new SubmitEvent('submit', {
+                bubbles: true,
+                cancelable: true,
+                submitter: null
+              }))
+              console.log(logPrefix, '[auto-send] dispatched form submit')
+              return true
             } catch {}
           }
 
-          console.log(logPrefix, '[auto-send] dispatched Enter key event')
-          return false
+          console.log(logPrefix, '[auto-send] dispatched Enter key events')
+          return true
         } catch (error) {
           console.warn(logPrefix, '[auto-send] Enter key dispatch failed:', error)
           return false
@@ -495,6 +582,196 @@ export function buildPromptInsertScript(
 
       const hostname = window.location.hostname
       logAttachmentNotice()
+
+      const isPerplexityHost = /perplexity\.ai/i.test(hostname)
+
+      const getPerplexityPromptTarget = async () => {
+        // DOM 전체 덤프: 진단용
+        const collectPerplexityInputs = () => Array.from(document.querySelectorAll('textarea, input, [contenteditable], [role="textbox"], [data-lexical-editor], .ProseMirror'))
+          .map((el) => {
+            const r = el.getBoundingClientRect()
+            return {
+              tag: el.tagName,
+              type: el instanceof HTMLInputElement ? el.type : null,
+              role: el.getAttribute('role'),
+              ce: el.getAttribute('contenteditable'),
+              lexical: el.getAttribute('data-lexical-editor'),
+              placeholder: el.getAttribute('placeholder'),
+              ariaLabel: el.getAttribute('aria-label'),
+              class: String(el.className || '').slice(0, 90),
+              text: String(el.textContent || '').trim().slice(0, 60),
+              rect: { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) },
+              visible: r.width > 0 && r.height > 0
+            }
+          })
+
+        const allInputs = Array.from(document.querySelectorAll('textarea, input, [contenteditable], [role="textbox"], [data-lexical-editor], .ProseMirror'))
+        window.__AI_BROWSER_PERPLEXITY_INPUTS__ = collectPerplexityInputs()
+        console.log(logPrefix, '[Perplexity] ALL inputs in DOM:', window.__AI_BROWSER_PERPLEXITY_INPUTS__)
+
+        // 1순위: textarea 중 visible + 가장 넓은 것
+        const textareas = Array.from(document.querySelectorAll('textarea'))
+          .filter((el) => isVisible(el))
+          .sort((a, b) => {
+            const ra = a.getBoundingClientRect()
+            const rb = b.getBoundingClientRect()
+            const scoreA = ra.bottom + (ra.width / 10)
+            const scoreB = rb.bottom + (rb.width / 10)
+            return scoreB - scoreA
+          })
+
+        if (textareas.length > 0) {
+          console.log(logPrefix, '[Perplexity] found textarea:', {
+            placeholder: textareas[0].getAttribute('placeholder'),
+            rect: (() => {
+              const r = textareas[0].getBoundingClientRect()
+              return { top: Math.round(r.top), bottom: Math.round(r.bottom), width: Math.round(r.width), height: Math.round(r.height) }
+            })()
+          })
+          return textareas[0]
+        }
+
+        // 2순위: contenteditable / role=textbox
+        const selectors = [
+          '[contenteditable="true"]',
+          '[contenteditable="plaintext-only"]',
+          '[role="textbox"]',
+          '[data-lexical-editor="true"]',
+          '[data-lexical-editor]',
+          '.ProseMirror'
+        ].join(', ')
+
+        const seen = new Set()
+        const candidates = Array.from(document.querySelectorAll(selectors))
+          .map(resolveEditableElement)
+          .filter((element) => {
+            if (!element) return false
+            if (seen.has(element)) return false
+            seen.add(element)
+            if (!isVisible(element)) return false
+            const rect = element.getBoundingClientRect()
+            return rect.width > 100
+          })
+          .sort((a, b) => {
+            const ra = a.getBoundingClientRect()
+            const rb = b.getBoundingClientRect()
+            const scoreA = ra.bottom + (ra.width / 10)
+            const scoreB = rb.bottom + (rb.width / 10)
+            return scoreB - scoreA
+          })
+
+        console.log(logPrefix, '[Perplexity] contenteditable candidates:', candidates.length)
+        if (candidates[0]) return candidates[0]
+
+        const clickPoints = [
+          { x: window.innerWidth * 0.52, y: window.innerHeight - 86 },
+          { x: window.innerWidth * 0.45, y: window.innerHeight - 86 },
+          { x: window.innerWidth * 0.62, y: window.innerHeight - 86 },
+          { x: window.innerWidth * 0.52, y: window.innerHeight - 112 }
+        ]
+
+        for (const point of clickPoints) {
+          const target = document.elementFromPoint(point.x, point.y)
+          const editable = target?.closest?.('textarea, input[type="text"], input[type="search"], input:not([type]), [contenteditable="true"], [contenteditable="plaintext-only"], [role="textbox"], [data-lexical-editor], .ProseMirror')
+          let candidate = editable ? resolveEditableElement(editable) : null
+
+          try {
+            const clickTarget = target instanceof HTMLElement ? target : candidate
+            clickTarget?.dispatchEvent?.(new MouseEvent('mousedown', { bubbles: true, cancelable: true, view: window, clientX: point.x, clientY: point.y }))
+            clickTarget?.dispatchEvent?.(new MouseEvent('mouseup', { bubbles: true, cancelable: true, view: window, clientX: point.x, clientY: point.y }))
+            clickTarget?.dispatchEvent?.(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, clientX: point.x, clientY: point.y }))
+            clickTarget?.focus?.()
+            await wait(180)
+          } catch {}
+
+          if (!candidate || !isVisible(candidate)) {
+            const active = document.activeElement
+            const activeEditable = active?.closest?.('textarea, input[type="text"], input[type="search"], input:not([type]), [contenteditable="true"], [contenteditable="plaintext-only"], [role="textbox"], [data-lexical-editor], .ProseMirror')
+            candidate = activeEditable ? resolveEditableElement(activeEditable) : null
+          }
+
+          if (candidate && isVisible(candidate) && isEditableElement(candidate)) {
+            candidate.focus?.()
+            console.log(logPrefix, '[Perplexity] found by coordinate:', {
+              point,
+              tag: candidate.tagName,
+              role: candidate.getAttribute('role'),
+              contenteditable: candidate.getAttribute('contenteditable'),
+              lexical: candidate.getAttribute('data-lexical-editor'),
+              placeholder: candidate.getAttribute('placeholder'),
+              ariaLabel: candidate.getAttribute('aria-label')
+            })
+            return candidate
+          }
+        }
+
+        const active = document.activeElement
+        if (active && isEditableElement(active) && isVisible(active)) {
+          console.log(logPrefix, '[Perplexity] using activeElement:', active.tagName)
+          return active
+        }
+
+        return null
+      }
+
+      const setPerplexityPromptValue = (target) => {
+        try {
+          target.focus?.()
+
+          const dispatchPerplexityReplacementEvents = (element) => {
+            try {
+              element.dispatchEvent(new InputEvent('input', {
+                bubbles: true,
+                cancelable: true,
+                inputType: 'insertReplacementText',
+                data: null
+              }))
+            } catch {
+              element.dispatchEvent(new Event('input', { bubbles: true }))
+            }
+            element.dispatchEvent(new Event('change', { bubbles: true }))
+          }
+
+          if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+            const proto = target instanceof HTMLTextAreaElement
+              ? HTMLTextAreaElement.prototype
+              : HTMLInputElement.prototype
+            const valueSetter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
+
+            if (valueSetter) {
+              valueSetter.call(target, '')
+              dispatchPerplexityReplacementEvents(target)
+              valueSetter.call(target, promptText)
+            } else {
+              target.value = ''
+              dispatchPerplexityReplacementEvents(target)
+              target.value = promptText
+            }
+
+            dispatchPerplexityReplacementEvents(target)
+            setCaretToEnd(target)
+            return target.value === promptText
+          }
+
+          if (target.isContentEditable || target.getAttribute('role') === 'textbox' || target.hasAttribute('data-lexical-editor') || target.classList?.contains('ProseMirror')) {
+            target.focus?.()
+            target.textContent = ''
+            target.innerHTML = ''
+            dispatchPerplexityReplacementEvents(target)
+
+            target.replaceChildren(document.createTextNode(promptText))
+            dispatchPerplexityReplacementEvents(target)
+            setCaretToEnd(target)
+
+            const currentText = (target.textContent || '').trim()
+            return currentText === promptText.trim()
+          }
+        } catch (error) {
+          console.warn(logPrefix, '[Perplexity] set prompt value failed:', error)
+        }
+
+        return false
+      }
 
       const clickChatGPTSendButton = () => {
         // ChatGPT composer area: look for send button by aria-label, data-testid, type=submit, SVG, or position
@@ -601,26 +878,109 @@ export function buildPromptInsertScript(
       }
 
       const clickPerplexitySendButton = () => {
-        const pplxSelectors = [
-          'button[aria-label*="Submit" i]',
-          'button[aria-label*="Send" i]',
-          'button[type="submit"]',
+        const inputRect = insertedTarget?.getBoundingClientRect?.()
+
+        const blockedPerplexityButtonText = /검색|심층|리서치|모델|협의회|단계별|배우기|첨부|attach|upload|file|image|photo|mic|voice|audio|settings|menu|more|download|comet/i
+
+        // 전체 버튼 덤프: 진단용
+        const allButtons = Array.from(document.querySelectorAll('button, [role="button"]'))
+        console.log(logPrefix, '[Perplexity] ALL buttons in DOM:', allButtons.map((el) => {
+          const r = el.getBoundingClientRect()
+          return {
+            tag: el.tagName,
+            ariaLabel: el.getAttribute('aria-label'),
+            type: el.getAttribute('type'),
+            disabled: el.hasAttribute('disabled'),
+            text: (el.textContent || '').trim().slice(0, 30),
+            rect: { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) },
+            visible: r.width > 0 && r.height > 0
+          }
+        }))
+
+        // 1단계: 입력창 기준으로 같은 행(row) 또는 바로 아래에 있는 버튼 탐색
+        // Perplexity는 입력창 오른쪽에 전송 버튼이 있음
+        if (inputRect) {
+          const nearInputButtons = Array.from(document.querySelectorAll('button:not([disabled]), [role="button"]:not([disabled])'))
+            .map(el => normalizeButton(el))
+            .filter(Boolean)
+            .filter((button) => {
+              if (!isVisibleButton(button)) return false
+              const text = getButtonText(button)
+              if (blockedPerplexityButtonText.test(text)) return false
+              const rect = button.getBoundingClientRect()
+              // 입력창 수직 범위 내 (위아래 40px 여유)
+              if (rect.top < inputRect.top - 40) return false
+              if (rect.bottom > inputRect.bottom + 40) return false
+              // 입력창 왼쪽 절반보다 왼쪽은 제외
+              if (rect.right < inputRect.left + inputRect.width * 0.5) return false
+              return true
+            })
+            .sort((a, b) => {
+              const ra = a.getBoundingClientRect()
+              const rb = b.getBoundingClientRect()
+              // 가장 오른쪽 버튼
+              return rb.right - ra.right
+            })
+
+          console.log(logPrefix, '[Perplexity] near-input button candidates:', nearInputButtons.map((b) => {
+            const r = b.getBoundingClientRect()
+            return { text: getButtonText(b).slice(0, 60), rect: { top: Math.round(r.top), right: Math.round(r.right) } }
+          }))
+
+          if (nearInputButtons.length > 0) {
+            const btn = nearInputButtons[0]
+            if (clickButton(btn, '[Perplexity] near-input-send-button')) return true
+          }
+        }
+
+        // 2단계: 좌표 기반 탐색 (입력창 오른쪽 끝)
+        if (inputRect) {
+          const pointCandidates = [
+            { x: inputRect.right - 20, y: inputRect.top + inputRect.height / 2 },
+            { x: inputRect.right - 36, y: inputRect.top + inputRect.height / 2 },
+            { x: inputRect.right - 20, y: inputRect.bottom - 20 },
+            { x: inputRect.right - 36, y: inputRect.bottom - 20 },
+            { x: inputRect.right + 20, y: inputRect.top + inputRect.height / 2 },
+            { x: inputRect.right + 36, y: inputRect.top + inputRect.height / 2 }
+          ]
+
+          for (const point of pointCandidates) {
+            const target = document.elementFromPoint(point.x, point.y)
+            const button = normalizeButton(target)
+            if (button && isVisibleButton(button)) {
+              const text = getButtonText(button)
+              if (!blockedPerplexityButtonText.test(text)) {
+                console.log(logPrefix, '[Perplexity] coordinate hit:', { point, text: text.slice(0, 40) })
+                if (clickButton(button, '[Perplexity] coordinate-send-button')) return true
+              }
+            }
+          }
+        }
+
+        // 3단계: type=submit 또는 aria-label 기반
+        const directSelectors = [
+          'button[type="submit"]:not([disabled])',
+          'button[aria-label*="Submit" i]:not([disabled])',
+          'button[aria-label*="Send" i]:not([disabled])',
           '[data-testid*="submit" i]',
-          '[data-testid*="send" i]',
-          'button:has(svg)'
+          '[data-testid*="send" i]'
         ]
 
-        for (const sel of pplxSelectors) {
+        for (const sel of directSelectors) {
           const buttons = Array.from(document.querySelectorAll(sel))
             .map(el => normalizeButton(el))
             .filter(Boolean)
-            .filter(isSendButton)
+            .filter((button) => {
+              if (!isVisibleButton(button)) return false
+              return !blockedPerplexityButtonText.test(getButtonText(button))
+            })
 
           if (buttons.length > 0) {
             const btn = pickBottomRightButton(buttons)
             if (btn && clickButton(btn, '[Perplexity] ' + sel)) return true
           }
         }
+
         return false
       }
 
@@ -684,6 +1044,57 @@ export function buildPromptInsertScript(
         return false
       }
 
+      if (isPerplexityHost) {
+        console.log(logPrefix, '[Perplexity] host detected, shouldAutoSend:', shouldAutoSend)
+        let perplexityTarget = null
+
+        for (let attempt = 0; attempt < 12; attempt += 1) {
+          perplexityTarget = await getPerplexityPromptTarget()
+          console.log(logPrefix, '[Perplexity] target retry:', attempt, Boolean(perplexityTarget), perplexityTarget?.tagName)
+          if (perplexityTarget) break
+          await wait(500)
+        }
+
+        if (perplexityTarget) {
+          let inserted = false
+
+          for (let attempt = 0; attempt < 3; attempt += 1) {
+            inserted = setPerplexityPromptValue(perplexityTarget)
+            console.log(logPrefix, '[Perplexity] insert retry:', attempt, inserted, 'value:', perplexityTarget.value?.slice(0, 40) || perplexityTarget.textContent?.slice(0, 40))
+            if (inserted) break
+            await wait(250)
+          }
+
+          if (inserted) {
+            insertedTarget = perplexityTarget
+            let sent = false
+
+            if (shouldAutoSend) {
+              await wait(700)
+              sent = clickPerplexitySendButton()
+              if (!sent) {
+                await wait(600)
+                sent = clickPerplexitySendButton()
+              }
+            }
+
+            const sendAttempted = shouldAutoSend
+            console.log(logPrefix, '[Perplexity] result:', { inserted: true, sent, sendAttempted })
+            return { inserted: true, sent, sendAttempted }
+          }
+        }
+
+        const diagnostics = window.__AI_BROWSER_PERPLEXITY_INPUTS__ || []
+        console.warn(logPrefix, '[Perplexity] prompt target not found or insert failed', diagnostics)
+        return {
+          inserted: false,
+          sent: false,
+          sendAttempted: shouldAutoSend,
+          reason: 'perplexity-target-not-found-or-insert-failed',
+          diagnostics
+        }
+      }
+
       for (const selector of selectorGroups) {
         const candidates = getCandidates(selector)
 
@@ -705,8 +1116,18 @@ export function buildPromptInsertScript(
               }
 
               if (!sent) {
+                await wait(350)
+                sent = await dispatchEnterSubmit()
+              }
+
+              if (!sent) {
                 await wait(500)
                 sent = clickSendButton() || clickDirectSendFallback()
+              }
+
+              if (!sent) {
+                await wait(700)
+                sent = await dispatchEnterSubmit()
               }
             }
 
@@ -853,11 +1274,23 @@ export async function insertPromptIntoWebview(
   try {
     const result = await webview.executeJavaScript(script, true)
     if (result && typeof result === 'object') {
-      return result as WebviewPromptResult
+      const webviewResult = result as WebviewPromptResult
+      if (!webviewResult.inserted && /perplexity/i.test(options.debugLabel ?? '')) {
+        return insertPromptWithNativeInputFallback(webview, text, options)
+      }
+      return webviewResult
     }
+
+    if (result !== true && /perplexity/i.test(options.debugLabel ?? '')) {
+      return insertPromptWithNativeInputFallback(webview, text, options)
+    }
+
     return { inserted: result === true, sent: false, sendAttempted: Boolean(options.autoSend) }
   } catch (error) {
     console.error('Failed to insert prompt into webview:', error)
+    if (/perplexity/i.test(options.debugLabel ?? '')) {
+      return insertPromptWithNativeInputFallback(webview, text, options)
+    }
     return { inserted: false, sent: false, sendAttempted: Boolean(options.autoSend) }
   }
 }
